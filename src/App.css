@@ -1,0 +1,160 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: white;
+}
+
+.wrapper {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.logo-circle {
+  display: inline-block;
+  background: #e1e1e1;
+  border-radius: 50%;
+  width: 100px;
+  height: 100px;
+  line-height: 100px;
+  font-size: 18px;
+  color: #333;
+}
+
+.logo-text {
+  font-size: 32px;
+  color: #0e0e5f;
+  margin-top: 10px;
+  font-weight: 200;
+}
+
+.search-section {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.search-bar {
+  background-color: #0e0e5f;
+  border-radius: 30px;
+  padding: 10px 15px;
+  display: flex;
+  align-items: center;
+  width: 1000px;
+}
+
+.search-bar input {
+  flex: 1;
+  padding: 12px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  outline: none;
+  background-color: #0e0e5f;
+  color: white;
+  ::placeholder {color: #ccc;}
+}
+
+.search-bar button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 22px;
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+.result-dropdown {
+  position: relative;
+  margin-top: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.result-table {
+  width: 90%;
+  max-width: 900px;
+  margin-top: 20px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.result-table thead th {
+  background-color: #ddd;
+  padding: 12px;
+  text-align: center;
+  font-weight: bold;
+  border-right: 1px solid #bbb;
+}
+
+.result-table tbody td {
+  padding: 12px;
+  text-align: center;
+  border-top: 1px solid #eee;
+}
+
+.no-data {
+  color: gray;
+  font-size: 16px;
+  padding: 20px;
+}
+
+.help-btn {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  background-color: #0e0e5f;
+  color: white;
+  border: none;
+  border-radius: 30px;
+  padding: 8px 18px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.header, .search-section, .result-dropdown {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.wallet-info {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 24px;
+  margin-top: 16px;
+  padding: 16px 24px;
+  background-color: #f9f9f9;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.wallet-info p {
+  margin: 0;
+}
+
+.wallet-info button {
+  padding: 6px 12px;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 6px;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
