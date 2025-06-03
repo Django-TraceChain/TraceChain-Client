@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+// src/GraphPage.jsx
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import axios from 'axios';
 import './GraphPage.css';
 import Sidebar from './components/Sidebar';
 import SearchBar from './components/SearchBar';
 import GraphView from './components/GraphView';
-
 
 function GraphPage() {
   const location = useLocation();
@@ -12,11 +13,112 @@ function GraphPage() {
   const initialWallet = params.get('wallet');
 
   const [wallets, setWallets] = useState(initialWallet ? [initialWallet] : []);
-  const [edges, setEdges] = useState([]); // { from, to } 형태
+  const [edges, setEdges] = useState([]);
+  const [walletData, setWalletData] = useState({});
   const [selectedWallet, setSelectedWallet] = useState(initialWallet);
   const [sidebarVisible, setSidebarVisible] = useState(!!initialWallet);
+  const [mixingEnabled, setMixingEnabled] = useState(false);
 
-  // 노드 클릭 시 사이드바 열기
+  const fetchWalletData = async (address, enableMixing = false) => {
+    const chain = address.startsWith('0x') ? 'ethereum' : 'bitcoin';
+
+    try {
+      const res = await axios.get('http://localhost:8080/api/search', {
+        params: { address, chain },
+      });
+
+      let result = res.data;
+
+      if (enableMixing) {
+        try {
+          const detectRes = await axios.post(
+            'http://localhost:8080/api/detect-selected',
+            [address],
+            { headers: { 'Content-Type': 'application/json' } }
+          );
+
+          console.log('🔍 detect-selected 전체 응답:', detectRes.data);
+          console.log(`🔍 찾는 address (입력값): [${address}]`);
+
+          detectRes.data.forEach((item, idx) => {
+            console.log(`🔍 [${idx}] 응답 address: [${item.address}]`);
+          });
+
+          const matched = detectRes.data.find(
+            (item) =>
+              item.address?.toLowerCase().trim() === address?.toLowerCase().trim()
+          );
+
+          if (matched) {
+            const patternsFromServer = matched.patterns || [];
+            console.log(`🧠 감지된 패턴 (${matched.address}):`, patternsFromServer);
+            result.patterns = patternsFromServer;
+          } else {
+            console.warn(`❗ 감지 응답에 주소 ${address}에 해당하는 데이터가 없음`);
+            result.patterns = [];
+          }
+        } catch (e) {
+          console.warn('❌ Detect API 실패:', address, e);
+          result.patterns = [];
+        }
+      } else {
+        const existingPatterns = walletData[address]?.patterns || [];
+        result.patterns = existingPatterns;
+      }
+
+      console.log(`📦 최종 result 저장 [${address}]:`, result);
+
+      setWalletData((prev) => ({
+        ...prev,
+        [address]: {
+          ...(prev[address] || {}),
+          ...result,
+          patterns: result.patterns,
+        },
+      }));
+
+      return result;
+    } catch (e) {
+      console.warn('❌ Search API 실패:', address, e);
+      return null;
+    }
+  };
+
+  const updateAllMixingInfo = async () => {
+    const newData = {};
+
+    for (const addr of wallets) {
+      try {
+        const data = await fetchWalletData(addr, true);
+        if (data) {
+          newData[addr] = data;
+        }
+        await new Promise((r) => setTimeout(r, 100)); // 서버 부하 방지
+      } catch (err) {
+        console.warn(`⚠️ 감지 실패: ${addr}`, err);
+      }
+    }
+
+    setWalletData((prev) => ({ ...prev, ...newData }));
+  };
+
+  const handleAddWallet = async ({ from, to }) => {
+    if (!wallets.includes(from)) {
+      setWallets((prev) => [...prev, from]);
+    }
+
+    const edgeExists = edges.some((e) => e.from === from && e.to === to);
+    if (!edgeExists) {
+      setEdges((prev) => [...prev, { from, to }]);
+    }
+
+    const newData = await fetchWalletData(from, mixingEnabled);
+    if (!newData) return;
+
+    setSelectedWallet(from);
+    setSidebarVisible(true);
+  };
+
   const handleNodeClick = (wallet) => {
     setSelectedWallet(wallet);
     setSidebarVisible(true);
@@ -26,22 +128,34 @@ function GraphPage() {
     setSidebarVisible(false);
   };
 
-  // + 버튼에서 호출될 함수
-  const handleAddWallet = ({ from, to }) => {
-    // from 주소가 wallets에 없다면 추가
-    if (!wallets.includes(from)) {
-      setWallets((prev) => [...prev, from]);
-    }
+  const handleToggleChange = async (e) => {
+    const isOn = e.target.checked;
+    setMixingEnabled(isOn);
 
-    // 간선 추가 (중복 방지)
-    const edgeExists = edges.some(e => e.from === from && e.to === to);
-    if (!edgeExists) {
-      setEdges((prev) => [...prev, { from, to }]);
+    if (isOn) {
+      await updateAllMixingInfo();
+    } else {
+      const reset = Object.fromEntries(
+        Object.entries(walletData).map(([k, v]) => [k, { ...v, patterns: [] }])
+      );
+      setWalletData(reset);
     }
-
-    setSelectedWallet(from); // 새 노드를 선택한 상태로
-    setSidebarVisible(true);
   };
+
+  useEffect(() => {
+    const loadInitialWallet = async () => {
+      if (initialWallet && !walletData[initialWallet]) {
+        const data = await fetchWalletData(initialWallet, false);
+        if (data) {
+          setWalletData((prev) => ({
+            ...prev,
+            [initialWallet]: data,
+          }));
+        }
+      }
+    };
+    loadInitialWallet();
+  }, [initialWallet]);
 
   return (
     <div className="graph-wrapper">
@@ -51,18 +165,32 @@ function GraphPage() {
           <h1 className="logo-text">TraceChain</h1>
         </header>
 
-        <div style={{ marginBottom: '30px' }}>
+        <div style={{ marginBottom: '20px' }}>
           <SearchBar />
         </div>
 
-<section className="graph-area">
-  <GraphView
-    nodes={wallets.map((address) => ({ address }))}
-    edges={edges}
-    onNodeClick={(wallet) => handleNodeClick(wallet)}
-  />
-</section>
+        <div className="toggle-wrapper">
+          <label className="toggle-label">Mixing Detection</label>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={mixingEnabled}
+              onChange={handleToggleChange}
+            />
+            <span className="slider round"></span>
+          </label>
+        </div>
 
+        <section className="graph-area">
+          <GraphView
+            nodes={wallets.map((address) => ({
+              address,
+              patternCount: walletData[address]?.patterns?.length || 0,
+            }))}
+            edges={edges}
+            onNodeClick={handleNodeClick}
+          />
+        </section>
       </div>
 
       {sidebarVisible && selectedWallet && (
@@ -70,7 +198,9 @@ function GraphPage() {
           <Sidebar
             wallet={selectedWallet}
             onClose={handleSidebarClose}
-            onAddWallet={handleAddWallet} // + 버튼으로 호출될 콜백
+            onAddWallet={handleAddWallet}
+            walletData={walletData[selectedWallet] || null}
+            mixingEnabled={mixingEnabled}
           />
         </div>
       )}
