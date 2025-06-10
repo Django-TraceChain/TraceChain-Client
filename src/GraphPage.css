@@ -1,0 +1,154 @@
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: auto;            /* ✅ 수정 */
+  min-height: 100vh;       /* ✅ 최소 높이 */
+  overflow-x: hidden;      /* ✅ 가로만 숨김, 세로는 열어둠 */
+  box-sizing: border-box;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #f4f4f8;
+}
+
+.graph-wrapper {
+  display: flex;
+  width: 100vw;
+  flex-direction: row; /* ✅ 추가: 세로 배치 */
+  min-height: calc(100vh + 10px); /* ✅ 세로 여유 확보 */
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: width 0.3s ease;
+  padding: 20px;
+  box-sizing: border-box;
+  background-color: #f4f4f8;
+  width: 100%;
+}
+
+.main-content.full {
+  width: 100%;
+}
+
+.main-content.half {
+  width: 50%;
+}
+
+.sidebar-wrapper {
+  width: 50%;
+  height: 100vh;
+  overflow-y: auto;
+  background-color: #fff;
+  border-left: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+.header {
+  text-align: center;
+  padding: 16px 0;
+}
+
+.logo-circle {
+  display: inline-block;
+  background: #e1e1e1;
+  border-radius: 50%;
+  width: 80px;
+  height: 80px;
+  line-height: 80px;
+  font-size: 16px;
+  color: #333;
+}
+
+.logo-text {
+  font-size: 28px;
+  color: #0e0e5f;
+  font-weight: 400;
+  margin-left: 12px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.search-bar {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.graph-area {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  flex-grow: 1;
+  padding: 32px;
+  margin-top: 30px;
+  background-color: rgba(11, 13, 103, 0.1);
+  border-radius: 20px;
+  box-sizing: border-box;
+}
+
+/* 👇 토글 UI 추가 */
+.toggle-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin: 8px auto 10px auto;
+  max-width: 1000px; /* 💡 SearchBar와 동일한 최대 폭 */
+  width: 100%;
+  padding-right: 20px; /* 필요 시 조절 */
+}
+
+.toggle-label {
+  font-weight: bold;
+  color: #0e0e5f;
+  font-size: 14px;
+}
+
+/* 토글 스위치 */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  background-color: #ccc;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transition: 0.4s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #0e0e5f;
+}
+
+input:checked + .slider:before {
+  transform: translateX(22px);
+}
