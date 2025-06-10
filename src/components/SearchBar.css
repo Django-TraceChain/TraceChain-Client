@@ -4,12 +4,16 @@
   padding: 10px 15px;
   display: flex;
   align-items: center;
-  width: 700px;
+
+  width: 100%;
+  max-width: 100%;     /* ✅ max-width 제한 해제 */
   margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .search-bar input {
   flex: 1;
+  min-width: 0;
   padding: 12px;
   font-size: 16px;
   border: none;
@@ -30,4 +34,5 @@
   font-size: 22px;
   cursor: pointer;
   margin-left: 10px;
+
 }

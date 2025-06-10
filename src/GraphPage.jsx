@@ -135,8 +135,8 @@ function GraphPage() {
           <h1 className="logo-text">TraceChain</h1>
         </header>
 
-        <div style={{ marginBottom: '20px' }}>
-          <SearchBar />
+        <div style={{ marginBottom: '20px'}}>
+          <SearchBar onAddWallet={handleAddWallet} />
         </div>
 
         <div className="toggle-wrapper">
