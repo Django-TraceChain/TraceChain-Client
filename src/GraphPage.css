@@ -61,6 +61,14 @@ body, html {
   font-size: 16px;
   color: #333;
 }
+.logo-image {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%; /* 원형 만들기 */
+  object-fit: cover;  /* 비율 유지하면서 잘 맞춤 */
+  margin-right: 12px;
+  box-shadow: 0 0 5px rgba(0,0,0,0.1); /* 선택 사항: 살짝 그림자 */
+}
 
 .logo-text {
   font-size: 28px;

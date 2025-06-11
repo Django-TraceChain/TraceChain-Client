@@ -5,6 +5,7 @@ import './GraphPage.css';
 import Sidebar from './components/Sidebar';
 import SearchBar from './components/SearchBar';
 import GraphView from './components/GraphView';
+import logo from './assets/logo.png';
 
 function GraphPage() {
   const location = useLocation();
@@ -148,7 +149,7 @@ function GraphPage() {
     <div className="graph-wrapper">
       <div className={`main-content ${sidebarVisible ? 'half' : 'full'}`}>
         <header className="header">
-          <div className="logo-circle">로고</div>
+          <img src={logo} alt="TraceChain Logo" className="logo-image" />
           <h1 className="logo-text">TraceChain</h1>
         </header>
 

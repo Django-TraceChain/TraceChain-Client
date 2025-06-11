@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import './App.css';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import logo from './assets/logo.png';
 
 function App() {
   const [wallet, setWallet] = useState('');
@@ -48,7 +49,7 @@ function App() {
   return (
     <div className="wrapper">
       <header className="header">
-        <div className="logo-circle">로고</div>
+        <img src={logo} alt="TraceChain Logo" className="logo-image" />
         <h1 className="logo-text">TraceChain</h1>
       </header>
 
