@@ -1,4 +1,3 @@
-// src/GraphPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
@@ -12,19 +11,20 @@ function GraphPage() {
   const params = new URLSearchParams(location.search);
   const initialWallet = params.get('wallet');
 
-  const [wallets, setWallets] = useState(initialWallet ? [initialWallet] : []);
+  const [wallets, setWallets] = useState(initialWallet ? [initialWallet.toLowerCase()] : []);
   const [edges, setEdges] = useState([]);
   const [walletData, setWalletData] = useState({});
-  const [selectedWallet, setSelectedWallet] = useState(initialWallet);
+  const [selectedWallet, setSelectedWallet] = useState(initialWallet?.toLowerCase() || null);
   const [sidebarVisible, setSidebarVisible] = useState(!!initialWallet);
   const [mixingEnabled, setMixingEnabled] = useState(false);
 
   const fetchWalletData = async (address, enableMixing = false) => {
-    const chain = address.startsWith('0x') ? 'ethereum' : 'bitcoin';
+    const normalizedAddress = address.toLowerCase();
+    const chain = normalizedAddress.startsWith('0x') ? 'ethereum' : 'bitcoin';
 
     try {
       const res = await axios.get('http://localhost:8080/api/search', {
-        params: { address, chain },
+        params: { address: normalizedAddress, chain },
       });
 
       let result = res.data;
@@ -33,13 +33,13 @@ function GraphPage() {
         try {
           const detectRes = await axios.post(
             'http://localhost:8080/api/detect-selected',
-            [address],
+            [normalizedAddress],
             { headers: { 'Content-Type': 'application/json' } }
           );
 
           const matched = detectRes.data.find(
             (item) =>
-              item.address?.toLowerCase().trim() === address?.toLowerCase().trim()
+              item.address?.toLowerCase().trim() === normalizedAddress
           );
 
           result.patterns = matched ? matched.patterns || [] : [];
@@ -47,14 +47,14 @@ function GraphPage() {
           result.patterns = [];
         }
       } else {
-        const existingPatterns = walletData[address]?.patterns || [];
+        const existingPatterns = walletData[normalizedAddress]?.patterns || [];
         result.patterns = existingPatterns;
       }
 
       setWalletData((prev) => ({
         ...prev,
-        [address]: {
-          ...(prev[address] || {}),
+        [normalizedAddress]: {
+          ...(prev[normalizedAddress] || {}),
           ...result,
           patterns: result.patterns,
         },
@@ -68,30 +68,38 @@ function GraphPage() {
   };
 
   const handleAddWallet = async ({ from, to, amount }) => {
-    if (!wallets.includes(from)) {
-      setWallets((prev) => [...prev, from]);
-    }
-    if (!wallets.includes(to)) {
-    setWallets((prev) => [...prev, to]);
-  }
+    const fromAddr = from.toLowerCase();
+    const toAddr = to.toLowerCase();
 
-    const edgeExists = edges.some((e) => e.from === from && e.to === to);
+    setWallets((prev) => {
+      const existing = new Set(prev.map((a) => a.toLowerCase()));
+      const next = [...prev];
+      if (!existing.has(fromAddr)) next.push(fromAddr);
+      if (!existing.has(toAddr)) next.push(toAddr);
+      return next;
+    });
+
+    const edgeExists = edges.some(
+      (e) =>
+        e.from.toLowerCase() === fromAddr &&
+        e.to.toLowerCase() === toAddr &&
+        e.amount === String(amount)
+    );
+
     if (!edgeExists) {
-      setEdges((prev) => [...prev, { from, to, amount: String(amount) }]);
+      setEdges((prev) => [
+        ...prev,
+        { from: fromAddr, to: toAddr, amount: String(amount) },
+      ]);
     }
 
-    await fetchWalletData(from, mixingEnabled);
-     await fetchWalletData(to, mixingEnabled);
-    setSidebarVisible(true); // ⚠️ selectedWallet은 변경하지 않음
+    await fetchWalletData(fromAddr, mixingEnabled);
+    await fetchWalletData(toAddr, mixingEnabled);
+    setSidebarVisible(true);
   };
 
-
-
-
-
-
   const handleNodeClick = (wallet) => {
-    setSelectedWallet(wallet);
+    setSelectedWallet(wallet.toLowerCase());
     setSidebarVisible(true);
   };
 
@@ -123,12 +131,12 @@ function GraphPage() {
 
   useEffect(() => {
     const loadInitialWallet = async () => {
-      if (initialWallet && !walletData[initialWallet]) {
-        const data = await fetchWalletData(initialWallet, false);
+      if (initialWallet && !walletData[initialWallet.toLowerCase()]) {
+        const data = await fetchWalletData(initialWallet.toLowerCase(), false);
         if (data) {
           setWalletData((prev) => ({
             ...prev,
-            [initialWallet]: data,
+            [initialWallet.toLowerCase()]: data,
           }));
         }
       }
@@ -144,7 +152,7 @@ function GraphPage() {
           <h1 className="logo-text">TraceChain</h1>
         </header>
 
-        <div style={{ marginBottom: '20px'}}>
+        <div style={{ marginBottom: '20px' }}>
           <SearchBar onAddWallet={handleAddWallet} />
         </div>
 
