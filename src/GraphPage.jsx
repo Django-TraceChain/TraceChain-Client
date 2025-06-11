@@ -1,31 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import axios from 'axios';
-import './GraphPage.css';
-import Sidebar from './components/Sidebar';
-import SearchBar from './components/SearchBar';
-import GraphView from './components/GraphView';
-import logo from './assets/logo.png';
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import axios from "axios";
+import "./GraphPage.css";
+import Sidebar from "./components/Sidebar";
+import SearchBar from "./components/SearchBar";
+import GraphView from "./components/GraphView";
+import logo from "./assets/logo.png";
 
 function GraphPage() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
-  const initialWallet = params.get('wallet');
+  const initialWallet = params.get("wallet");
 
-  const [wallets, setWallets] = useState(initialWallet ? [initialWallet.toLowerCase()] : []);
+  const [wallets, setWallets] = useState(initialWallet ? [initialWallet] : []);
   const [edges, setEdges] = useState([]);
   const [walletData, setWalletData] = useState({});
-  const [selectedWallet, setSelectedWallet] = useState(initialWallet?.toLowerCase() || null);
+  const [selectedWallet, setSelectedWallet] = useState(initialWallet || null);
   const [sidebarVisible, setSidebarVisible] = useState(!!initialWallet);
   const [mixingEnabled, setMixingEnabled] = useState(false);
 
   const fetchWalletData = async (address, enableMixing = false) => {
-    const normalizedAddress = address.toLowerCase();
-    const chain = normalizedAddress.startsWith('0x') ? 'ethereum' : 'bitcoin';
+    const chain = address.startsWith("0x") ? "ethereum" : "bitcoin";
 
     try {
-      const res = await axios.get('http://localhost:8080/api/search', {
-        params: { address: normalizedAddress, chain },
+      const res = await axios.get("http://localhost:8080/api/search", {
+        params: { address, chain },
       });
 
       let result = res.data;
@@ -33,14 +32,13 @@ function GraphPage() {
       if (enableMixing) {
         try {
           const detectRes = await axios.post(
-            'http://localhost:8080/api/detect-selected',
-            [normalizedAddress],
-            { headers: { 'Content-Type': 'application/json' } }
+            "http://localhost:8080/api/detect-selected",
+            [address],
+            { headers: { "Content-Type": "application/json" } }
           );
 
           const matched = detectRes.data.find(
-            (item) =>
-              item.address?.toLowerCase().trim() === normalizedAddress
+            (item) => item.address === address
           );
 
           result.patterns = matched ? matched.patterns || [] : [];
@@ -48,14 +46,14 @@ function GraphPage() {
           result.patterns = [];
         }
       } else {
-        const existingPatterns = walletData[normalizedAddress]?.patterns || [];
+        const existingPatterns = walletData[address]?.patterns || [];
         result.patterns = existingPatterns;
       }
 
       setWalletData((prev) => ({
         ...prev,
-        [normalizedAddress]: {
-          ...(prev[normalizedAddress] || {}),
+        [address]: {
+          ...(prev[address] || {}),
           ...result,
           patterns: result.patterns,
         },
@@ -63,44 +61,35 @@ function GraphPage() {
 
       return result;
     } catch (e) {
-      console.warn('❌ Search API 실패:', address, e);
+      console.warn("❌ Search API 실패:", address, e);
       return null;
     }
   };
 
   const handleAddWallet = async ({ from, to, amount }) => {
-    const fromAddr = from.toLowerCase();
-    const toAddr = to.toLowerCase();
-
     setWallets((prev) => {
-      const existing = new Set(prev.map((a) => a.toLowerCase()));
+      const existing = new Set(prev);
       const next = [...prev];
-      if (!existing.has(fromAddr)) next.push(fromAddr);
-      if (!existing.has(toAddr)) next.push(toAddr);
+      if (!existing.has(from)) next.push(from);
+      if (!existing.has(to)) next.push(to);
       return next;
     });
 
     const edgeExists = edges.some(
-      (e) =>
-        e.from.toLowerCase() === fromAddr &&
-        e.to.toLowerCase() === toAddr &&
-        e.amount === String(amount)
+      (e) => e.from === from && e.to === to && e.amount === String(amount)
     );
 
     if (!edgeExists) {
-      setEdges((prev) => [
-        ...prev,
-        { from: fromAddr, to: toAddr, amount: String(amount) },
-      ]);
+      setEdges((prev) => [...prev, { from, to, amount: String(amount) }]);
     }
 
-    await fetchWalletData(fromAddr, mixingEnabled);
-    await fetchWalletData(toAddr, mixingEnabled);
+    await fetchWalletData(from, mixingEnabled);
+    await fetchWalletData(to, mixingEnabled);
     setSidebarVisible(true);
   };
 
   const handleNodeClick = (wallet) => {
-    setSelectedWallet(wallet.toLowerCase());
+    setSelectedWallet(wallet);
     setSidebarVisible(true);
   };
 
@@ -132,12 +121,12 @@ function GraphPage() {
 
   useEffect(() => {
     const loadInitialWallet = async () => {
-      if (initialWallet && !walletData[initialWallet.toLowerCase()]) {
-        const data = await fetchWalletData(initialWallet.toLowerCase(), false);
+      if (initialWallet && !walletData[initialWallet]) {
+        const data = await fetchWalletData(initialWallet, false);
         if (data) {
           setWalletData((prev) => ({
             ...prev,
-            [initialWallet.toLowerCase()]: data,
+            [initialWallet]: data,
           }));
         }
       }
@@ -147,13 +136,13 @@ function GraphPage() {
 
   return (
     <div className="graph-wrapper">
-      <div className={`main-content ${sidebarVisible ? 'half' : 'full'}`}>
+      <div className={`main-content ${sidebarVisible ? "half" : "full"}`}>
         <header className="header">
           <img src={logo} alt="TraceChain Logo" className="logo-image" />
           <h1 className="logo-text">TraceChain</h1>
         </header>
 
-        <div style={{ marginBottom: '20px' }}>
+        <div style={{ marginBottom: "20px" }}>
           <SearchBar onAddWallet={handleAddWallet} />
         </div>
 
