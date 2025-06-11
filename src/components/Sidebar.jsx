@@ -122,7 +122,10 @@ function Sidebar({ wallet, onClose, onAddWallet, walletData, mixingEnabled }) {
               const isIncoming = transfer.receiver?.toLowerCase() === wallet.toLowerCase();
               const counterparty = isIncoming ? transfer.sender : transfer.receiver;
               const rawAmount = transfer.amount;
-              const amountETH = rawAmount ? Number(rawAmount) / 1e18 : null;
+              const amountETH =
+                rawAmount !== undefined && rawAmount !== null
+                  ? Number(rawAmount)
+                  : null;
 
               const date = new Date(tx.timestamp);
               const dateStr = `${date.getFullYear()}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getDate().toString().padStart(2, '0')}`;
@@ -159,10 +162,13 @@ function Sidebar({ wallet, onClose, onAddWallet, walletData, mixingEnabled }) {
             const selected = filteredTx.find((tx) => tx.txID === selectedTxId);
             const transfer = selected?.transfers?.[0];
             if (!transfer) return alert('No address selected.');
-            const isIncoming = transfer.receiver?.toLowerCase() === wallet.toLowerCase();
-            const target = isIncoming ? transfer.sender : transfer.receiver;
-            if (!target) return alert('No address found.');
-            onAddWallet({ from: target, to: wallet, amount: String(transfer.amount)});
+
+            onAddWallet({
+      from: transfer.sender,
+      to: transfer.receiver,
+      amount: String(transfer.amount)
+    });
+
           }}
         >+</button>
       </div>

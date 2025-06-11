@@ -27,17 +27,21 @@ function SearchBar({ onAddWallet }) {
   const handleSearch = async () => {
     if (!wallet.trim()) return;
     try {
-      const res = await axios.get('http://localhost:8080/api/search', {
-        params: { address: wallet.trim() },
+      const res = await axios.get("http://localhost:8080/api/search", {
+        params: {
+          address: wallet.trim(),
+          chain: wallet.trim().startsWith("0x") ? "ethereum" : "bitcoin",
+        },
       });
       setSearchResult(res.data);
       setShowDropdown(true);
     } catch (e) {
-      console.error('검색 실패:', e);
+      console.error("검색 실패:", e);
       setSearchResult(null);
       setShowDropdown(false);
     }
   };
+
 
   const handleAddClick = () => {
     if (!searchResult) return;

@@ -1,10 +1,15 @@
-import React, { useRef, useLayoutEffect, useState } from 'react';
+import React, { useRef, useLayoutEffect, useState, useEffect } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
+
 
 function GraphView({ nodes, edges, onNodeClick }) {
   const fgRef = useRef();
   const containerRef = useRef();
   const [dimensions, setDimensions] = useState(null); // null 초기화로 안전
+
+  useEffect(() =>{
+    console.log("edges:", edges);
+  }, [edges]);
 
   const getNodeColor = (count) => {
     if (count >= 4) return '#ff3b30';

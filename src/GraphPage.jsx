@@ -71,6 +71,9 @@ function GraphPage() {
     if (!wallets.includes(from)) {
       setWallets((prev) => [...prev, from]);
     }
+    if (!wallets.includes(to)) {
+    setWallets((prev) => [...prev, to]);
+  }
 
     const edgeExists = edges.some((e) => e.from === from && e.to === to);
     if (!edgeExists) {
@@ -78,8 +81,14 @@ function GraphPage() {
     }
 
     await fetchWalletData(from, mixingEnabled);
+     await fetchWalletData(to, mixingEnabled);
     setSidebarVisible(true); // ⚠️ selectedWallet은 변경하지 않음
   };
+
+
+
+
+
 
   const handleNodeClick = (wallet) => {
     setSelectedWallet(wallet);
