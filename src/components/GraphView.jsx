@@ -1,81 +1,103 @@
-import React, { useRef, useLayoutEffect, useState, useEffect } from 'react';
-import ForceGraph2D from 'react-force-graph-2d';
-
+import React, {
+  useRef,
+  useLayoutEffect,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
+import ForceGraph2D from "react-force-graph-2d";
 
 function GraphView({ nodes, edges, onNodeClick }) {
   const fgRef = useRef();
   const containerRef = useRef();
-  const [dimensions, setDimensions] = useState(null); // null 초기화로 안전
+  const [dimensions, setDimensions] = useState(null);
 
-  useEffect(() =>{
-    console.log("edges:", edges);
-  }, [edges]);
+  // getNodeColor는 그대로 useCallback 유지
+  const getNodeColor = useCallback((count) => {
+    if (count >= 4) return "#ff3b30";
+    if (count >= 2) return "#ff9500";
+    if (count === 1) return "#ffcc00";
+    return "white";
+  }, []);
 
-  const getNodeColor = (count) => {
-    if (count >= 4) return '#ff3b30';
-    if (count >= 2) return '#ff9500';
-    if (count === 1) return '#ffcc00';
-    return 'white';
-  };
+  // nodes 배열 내부 객체를 재활용하기 위해, nodes 배열 안 객체의 참조를 유지한 채
+  // graphData 생성시 객체 새로 만들지 말고 기존 nodes 객체를 직접 사용
+  const graphData = useMemo(() => {
+    // nodes가 이미 {address, patternCount} 형태라면 id 필드만 alias 해줌
+    // (새 객체 생성 X, 기존 nodes 객체 재활용)
+    // 이 방법으로 내부 상태 초기화를 방지 가능
+    const graphNodes = nodes.map((n) => {
+      if (!n.id) {
+        // id가 없으면 새로 만들어서 할당
+        n.id = n.address;
+      }
+      return n;
+    });
 
-  const graphData = {
-    nodes: nodes.map((n) => ({
-      id: n.address,
-      patternCount: n.patternCount || 0,
-    })),
-    links: edges.map((e) => ({
+    const graphLinks = edges.map((e) => ({
       source: e.from,
       target: e.to,
       amount: e.amount,
-    })),
-  };
+    }));
 
-  const drawNode = (node, ctx, globalScale) => {
-    const radius = 6;
-    const fontSize = 12 / globalScale;
-    const text = node.id;
-    let displayText = text;
-    const maxTextWidth = radius * 2;
+    return { nodes: graphNodes, links: graphLinks };
+  }, [nodes, edges]);
 
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-    ctx.fillStyle = getNodeColor(node.patternCount || 0);
-    ctx.fill();
-    ctx.lineWidth = 0.5;
-    ctx.strokeStyle = '#0B0D67';
-    ctx.stroke();
+  // nodeCanvasObject 그대로 useCallback 유지
+  const drawNode = useCallback(
+    (node, ctx, globalScale) => {
+      const radius = 6;
+      const fontSize = 12 / globalScale;
+      const text = node.id;
+      let displayText = text;
+      const maxTextWidth = radius * 2;
 
-    ctx.font = `${fontSize}px Sans-Serif`;
-    ctx.fillStyle = '#0B0D67';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+      ctx.fillStyle = getNodeColor(node.patternCount || 0);
+      ctx.fill();
+      ctx.lineWidth = 0.5;
+      ctx.strokeStyle = "#0B0D67";
+      ctx.stroke();
 
-    if (ctx.measureText(text).width > maxTextWidth) {
-      while (
-        displayText.length > 0 &&
-        ctx.measureText(displayText + '...').width > maxTextWidth
-      ) {
-        displayText = displayText.slice(0, -1);
+      ctx.font = `${fontSize}px Sans-Serif`;
+      ctx.fillStyle = "#0B0D67";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      if (ctx.measureText(text).width > maxTextWidth) {
+        while (
+          displayText.length > 0 &&
+          ctx.measureText(displayText + "...").width > maxTextWidth
+        ) {
+          displayText = displayText.slice(0, -1);
+        }
+        displayText += "...";
       }
-      displayText += '...';
-    }
 
-    ctx.fillText(displayText, node.x, node.y);
-  };
+      ctx.fillText(displayText, node.x, node.y);
+    },
+    [getNodeColor]
+  );
 
-  // 👇 canvas 정확한 초기 크기 설정
   useLayoutEffect(() => {
     if (!containerRef.current) return;
 
     const updateSize = () => {
       const rect = containerRef.current.getBoundingClientRect();
-      setDimensions({
-        width: rect.width,
-        height: rect.height,
+      setDimensions((prev) => {
+        if (prev?.width !== rect.width || prev?.height !== rect.height) {
+          return {
+            width: rect.width,
+            height: rect.height,
+          };
+        }
+        return prev;
       });
     };
 
-    updateSize(); // 최초 실행
+    updateSize();
 
     const resizeObserver = new ResizeObserver(updateSize);
     resizeObserver.observe(containerRef.current);
@@ -87,7 +109,13 @@ function GraphView({ nodes, edges, onNodeClick }) {
     <div
       ref={containerRef}
       className="force-graph-container"
-      style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
+      style={{
+        width: "100%",
+        height: "100%",
+        position: "absolute",
+        top: 0,
+        left: 0,
+      }}
     >
       {dimensions && (
         <ForceGraph2D
@@ -97,9 +125,9 @@ function GraphView({ nodes, edges, onNodeClick }) {
           graphData={graphData}
           nodeLabel="id"
           linkLabel={(link) =>
-            typeof link.amount === 'string'
+            typeof link.amount === "string"
               ? `💰 Amount: ${link.amount}`
-              : '(no amount)'
+              : "(no amount)"
           }
           linkDirectionalArrowLength={6}
           linkDirectionalArrowRelPos={1}

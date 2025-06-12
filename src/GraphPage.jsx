@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import axios from "axios";
 import "./GraphPage.css";
@@ -7,7 +7,6 @@ import SearchBar from "./components/SearchBar";
 import GraphView from "./components/GraphView";
 import logo from "./assets/logo.png";
 
-// 주소 정규화 함수: 이더리움은 lower, 비트코인은 원형
 const normalizeAddress = (address) =>
   address.startsWith("0x") ? address.toLowerCase() : address;
 
@@ -26,88 +25,95 @@ function GraphPage() {
   const [sidebarVisible, setSidebarVisible] = useState(!!initialWallet);
   const [mixingEnabled, setMixingEnabled] = useState(false);
 
-  const fetchWalletData = async (address, enableMixing = false) => {
-    const normalized = normalizeAddress(address);
-    const chain = normalized.startsWith("0x") ? "ethereum" : "bitcoin";
+  const fetchWalletData = useCallback(
+    async (address, enableMixing = false) => {
+      const normalized = normalizeAddress(address);
+      const chain = normalized.startsWith("0x") ? "ethereum" : "bitcoin";
 
-    try {
-      const res = await axios.get("http://localhost:8080/api/search", {
-        params: { address: normalized, chain },
+      try {
+        const res = await axios.get("http://localhost:8080/api/search", {
+          params: { address: normalized, chain },
+        });
+        let result = res.data;
+
+        if (enableMixing) {
+          try {
+            const detectRes = await axios.post(
+              "http://localhost:8080/api/detect-selected",
+              [normalized],
+              { headers: { "Content-Type": "application/json" } }
+            );
+
+            const matched = detectRes.data.find(
+              (item) => normalizeAddress(item.address) === normalized
+            );
+
+            result.patterns = matched ? matched.patterns || [] : [];
+          } catch (e) {
+            result.patterns = [];
+          }
+        } else {
+          result.patterns = walletData[normalized]?.patterns || [];
+        }
+
+        return result;
+      } catch (e) {
+        console.warn("❌ Search API 실패:", address, e);
+        return null;
+      }
+    },
+    [walletData]
+  );
+
+  const handleAddWallet = useCallback(
+    async ({ from, to, amount }) => {
+      const fromAddr = normalizeAddress(from);
+      const toAddr = normalizeAddress(to);
+
+      const addresses = [fromAddr, toAddr];
+      const uniqueAddresses = addresses.filter(
+        (addr) => !wallets.includes(addr)
+      );
+      const fetchResults = await Promise.all(
+        uniqueAddresses.map((addr) => fetchWalletData(addr, mixingEnabled))
+      );
+
+      const newWalletData = {};
+      uniqueAddresses.forEach((addr, i) => {
+        if (fetchResults[i]) {
+          newWalletData[addr] = {
+            ...(walletData[addr] || {}),
+            ...fetchResults[i],
+            patterns: fetchResults[i].patterns || [],
+          };
+        }
       });
 
-      let result = res.data;
+      if (Object.keys(newWalletData).length > 0) {
+        setWalletData((prev) => ({ ...prev, ...newWalletData }));
+        setWallets((prev) => [
+          ...new Set([...prev, ...Object.keys(newWalletData)]),
+        ]);
 
-      if (enableMixing) {
-        try {
-          const detectRes = await axios.post(
-            "http://localhost:8080/api/detect-selected",
-            [normalized],
-            { headers: { "Content-Type": "application/json" } }
-          );
+        const edgeExists = edges.some(
+          (e) =>
+            normalizeAddress(e.from) === fromAddr &&
+            normalizeAddress(e.to) === toAddr &&
+            e.amount === String(amount)
+        );
 
-          const matched = detectRes.data.find(
-            (item) => normalizeAddress(item.address) === normalized
-          );
-
-          result.patterns = matched ? matched.patterns || [] : [];
-        } catch (e) {
-          result.patterns = [];
+        if (!edgeExists) {
+          setEdges((prev) => [
+            ...prev,
+            { from: fromAddr, to: toAddr, amount: String(amount) },
+          ]);
         }
-      } else {
-        const existingPatterns = walletData[normalized]?.patterns || [];
-        result.patterns = existingPatterns;
+
+        setSidebarVisible(true);
       }
-
-      setWalletData((prev) => ({
-        ...prev,
-        [normalized]: {
-          ...(prev[normalized] || {}),
-          ...result,
-          patterns: result.patterns,
-        },
-      }));
-
-      return result;
-    } catch (e) {
-      console.warn("❌ Search API 실패:", address, e);
-      return null;
-    }
-  };
-
-  const handleAddWallet = async ({ from, to, amount }) => {
-    const fromAddr = normalizeAddress(from);
-    const toAddr = normalizeAddress(to);
-
-    // 중복 제거된 주소들만 추가
-    setWallets((prev) => {
-      const set = new Set(prev);
-      set.add(fromAddr);
-      set.add(toAddr);
-      return Array.from(set);
-    });
-
-    // 중복 제거된 주소만 fetch
-    const uniqueAddrs = Array.from(new Set([fromAddr, toAddr]));
-    for (const addr of uniqueAddrs) {
-      await fetchWalletData(addr, mixingEnabled);
-    }
-
-    const edgeExists = edges.some(
-      (e) =>
-        normalizeAddress(e.from) === fromAddr &&
-        normalizeAddress(e.to) === toAddr &&
-        e.amount === String(amount)
-    );
-
-    if (!edgeExists) {
-      setEdges((prev) => [
-        ...prev,
-        { from: fromAddr, to: toAddr, amount: String(amount) },
-      ]);
-    }
-
-    setSidebarVisible(true);
-  };
+    },
+    [wallets, edges, walletData, fetchWalletData, mixingEnabled]
+  );
 
   const handleNodeClick = (wallet) => {
     setSelectedWallet(normalizeAddress(wallet));
@@ -153,7 +159,7 @@ function GraphPage() {
       }
     };
     loadInitialWallet();
-  }, [initialWallet]);
+  }, [initialWallet, fetchWalletData, walletData]);
 
   return (
     <div className="graph-wrapper">
