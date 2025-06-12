@@ -15,7 +15,9 @@ function GraphPage() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const initialWalletRaw = params.get("wallet");
-  const initialWallet = initialWalletRaw ? normalizeAddress(initialWalletRaw) : null;
+  const initialWallet = initialWalletRaw
+    ? normalizeAddress(initialWalletRaw)
+    : null;
 
   const [wallets, setWallets] = useState(initialWallet ? [initialWallet] : []);
   const [edges, setEdges] = useState([]);
@@ -76,13 +78,19 @@ function GraphPage() {
     const fromAddr = normalizeAddress(from);
     const toAddr = normalizeAddress(to);
 
+    // 중복 제거된 주소들만 추가
     setWallets((prev) => {
-      const existing = new Set(prev);
-      const next = [...prev];
-      if (!existing.has(fromAddr)) next.push(fromAddr);
-      if (!existing.has(toAddr)) next.push(toAddr);
-      return next;
+      const set = new Set(prev);
+      set.add(fromAddr);
+      set.add(toAddr);
+      return Array.from(set);
     });
+
+    // 중복 제거된 주소만 fetch
+    const uniqueAddrs = Array.from(new Set([fromAddr, toAddr]));
+    for (const addr of uniqueAddrs) {
+      await fetchWalletData(addr, mixingEnabled);
+    }
 
     const edgeExists = edges.some(
       (e) =>
@@ -92,11 +100,12 @@ function GraphPage() {
     );
 
     if (!edgeExists) {
-      setEdges((prev) => [...prev, { from: fromAddr, to: toAddr, amount: String(amount) }]);
+      setEdges((prev) => [
+        ...prev,
+        { from: fromAddr, to: toAddr, amount: String(amount) },
+      ]);
     }
 
-    await fetchWalletData(fromAddr, mixingEnabled);
-    await fetchWalletData(toAddr, mixingEnabled);
     setSidebarVisible(true);
   };
 
