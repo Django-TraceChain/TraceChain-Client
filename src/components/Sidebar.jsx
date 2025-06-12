@@ -5,7 +5,7 @@ import "./Sidebar.css";
 function Sidebar({ wallet, onClose, onAddWallet, walletData, mixingEnabled }) {
   const [keyword, setKeyword] = useState("");
   const [filterType, setFilterType] = useState("all");
-  const [selectedTxId, setSelectedTxId] = useState(null);
+  const [selectedTransferKey, setSelectedTransferKey] = useState(null);
 
   const safeData = walletData || {
     address: "",
@@ -21,51 +21,56 @@ function Sidebar({ wallet, onClose, onAddWallet, walletData, mixingEnabled }) {
 
   const transactions = data.transactions || [];
 
-  const filteredTx = useMemo(() => {
-    let filtered = [...transactions];
+  const filteredTransfers = useMemo(() => {
+    let allTransfers = [];
+
+    for (const tx of transactions) {
+      for (const t of tx.transfers || []) {
+        const sender = t.sender?.toLowerCase();
+        const receiver = t.receiver?.toLowerCase();
+        const walletLower = wallet.toLowerCase();
+
+        const isInvolved = sender === walletLower || receiver === walletLower;
+
+        if (!isInvolved) continue;
+        if (sender === receiver) continue; // A→A 트랜스퍼 제외
+
+        allTransfers.push({
+          txID: tx.txID,
+          timestamp: tx.timestamp,
+          transfer: t,
+        });
+      }
+    }
 
     if (keyword.trim()) {
       const query = keyword.toLowerCase();
-      filtered = filtered.filter((tx) =>
-        tx.transfers?.some((transfer) => {
-          const sender = transfer.sender?.toLowerCase() || "";
-          const receiver = transfer.receiver?.toLowerCase() || "";
-          const txID = tx.txID?.toLowerCase() || "";
-          return (
-            txID.includes(query) ||
-            sender.includes(query) ||
-            receiver.includes(query)
-          );
-        })
-      );
+      allTransfers = allTransfers.filter(({ txID, transfer }) => {
+        const sender = transfer.sender?.toLowerCase() || "";
+        const receiver = transfer.receiver?.toLowerCase() || "";
+        return (
+          txID.toLowerCase().includes(query) ||
+          sender.includes(query) ||
+          receiver.includes(query)
+        );
+      });
     }
 
     if (filterType === "in") {
-      filtered = filtered.filter((tx) =>
-        tx.transfers?.some(
-          (transfer) =>
-            transfer.receiver?.toLowerCase() === wallet.toLowerCase()
-        )
+      allTransfers = allTransfers.filter(
+        ({ transfer }) =>
+          transfer.receiver?.toLowerCase() === wallet.toLowerCase()
       );
     } else if (filterType === "out") {
-      filtered = filtered.filter((tx) =>
-        tx.transfers?.some(
-          (transfer) => transfer.sender?.toLowerCase() === wallet.toLowerCase()
-        )
-      );
-    } else {
-      filtered = filtered.filter((tx) =>
-        tx.transfers?.some(
-          (transfer) =>
-            transfer.sender?.toLowerCase() === wallet.toLowerCase() ||
-            transfer.receiver?.toLowerCase() === wallet.toLowerCase()
-        )
+      allTransfers = allTransfers.filter(
+        ({ transfer }) =>
+          transfer.sender?.toLowerCase() === wallet.toLowerCase()
       );
     }
 
-    filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    return filtered;
-  }, [transactions, keyword, filterType, wallet]);
+    allTransfers.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return allTransfers;
+  }, [transactions, wallet, keyword, filterType]);
 
   const chain = wallet?.startsWith("0x") ? "ethereum" : "bitcoin";
   const chainSymbol = chain === "ethereum" ? "ETH" : "BIT";
@@ -155,62 +160,39 @@ function Sidebar({ wallet, onClose, onAddWallet, walletData, mixingEnabled }) {
 
       <div className="sidebar-block tx-block">
         <div className="tx-scroll">
-          {filteredTx.length > 0 ? (
-            filteredTx.map((tx, i) => {
-              const transfer = tx.transfers?.find(
-                (t) =>
-                  t.sender?.toLowerCase() === wallet.toLowerCase() ||
-                  t.receiver?.toLowerCase() === wallet.toLowerCase()
-              );
-              if (!transfer) return null;
-
+          {filteredTransfers.length > 0 ? (
+            filteredTransfers.map(({ txID, timestamp, transfer }, i) => {
               const isIncoming =
                 transfer.receiver?.toLowerCase() === wallet.toLowerCase();
-              const counterparty = isIncoming
-                ? transfer.sender
-                : transfer.receiver;
-              const rawAmount = transfer.amount;
-              const amountETH =
-                rawAmount !== undefined && rawAmount !== null
-                  ? Number(rawAmount)
-                  : null;
+              const amount =
+                transfer.amount !== undefined ? Number(transfer.amount) : null;
 
-              console.log("[🔍 Amount Debug]", {
-                txID: tx.txID,
-                rawAmount,
-                parsedAmount: amountETH,
-                sender: transfer.sender,
-                receiver: transfer.receiver,
-              });
+              const date = new Date(timestamp);
+              const dateStr = `${date.getFullYear()}.${String(
+                date.getMonth() + 1
+              ).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
+              const timeStr = `${String(date.getHours()).padStart(
+                2,
+                "0"
+              )}:${String(date.getMinutes()).padStart(2, "0")}:${String(
+                date.getSeconds()
+              ).padStart(2, "0")}`;
 
-              const date = new Date(tx.timestamp);
-              const dateStr = `${date.getFullYear()}.${(date.getMonth() + 1)
-                .toString()
-                .padStart(2, "0")}.${date
-                .getDate()
-                .toString()
-                .padStart(2, "0")}`;
-              const timeStr = `${date
-                .getHours()
-                .toString()
-                .padStart(2, "0")}:${date
-                .getMinutes()
-                .toString()
-                .padStart(2, "0")}:${date
-                .getSeconds()
-                .toString()
-                .padStart(2, "0")}`;
+              const transferKey = `${txID}_${i}`;
 
               return (
                 <div
-                  key={i}
+                  key={transferKey}
                   className={`tx-item ${
-                    selectedTxId === tx.txID ? "selected" : ""
+                    selectedTransferKey === transferKey ? "selected" : ""
                   }`}
-                  onClick={() => setSelectedTxId(tx.txID)}
+                  onClick={() => setSelectedTransferKey(transferKey)}
                 >
-                  <span className="tx-address" title={counterparty}>
-                    {counterparty || "(unknown)"}
+                  <span
+                    className="tx-address"
+                    title={`${transfer.sender} → ${transfer.receiver}`}
+                  >
+                    {transfer.sender} → {transfer.receiver}
                   </span>
                   <span className="tx-date">
                     {dateStr}
@@ -222,7 +204,7 @@ function Sidebar({ wallet, onClose, onAddWallet, walletData, mixingEnabled }) {
                     style={{ color: isIncoming ? "green" : "red" }}
                   >
                     {isIncoming ? "←" : "→"}{" "}
-                    {amountETH !== null ? amountETH.toFixed(6) : "N/A"}
+                    {amount !== null ? amount.toFixed(6) : "N/A"}
                     <br />
                     {chainSymbol}
                   </span>
@@ -242,18 +224,41 @@ function Sidebar({ wallet, onClose, onAddWallet, walletData, mixingEnabled }) {
         <button
           className="tx-add-btn"
           onClick={() => {
-            const selected = filteredTx.find((tx) => tx.txID === selectedTxId);
-            const transfer = selected?.transfers?.find(
-              (t) =>
-                t.sender?.toLowerCase() === wallet.toLowerCase() ||
-                t.receiver?.toLowerCase() === wallet.toLowerCase()
-            );
-            if (!transfer) return alert("No address selected.");
+            const selectedTransfer = filteredTransfers.find(
+              (_, i) =>
+                `${filteredTransfers[i].txID}_${i}` === selectedTransferKey
+            )?.transfer;
+
+            if (!selectedTransfer) {
+              return alert("No valid transfer selected.");
+            }
+
+            const isSenderSelf =
+              selectedTransfer.sender?.toLowerCase() === wallet.toLowerCase();
+            const isReceiverSelf =
+              selectedTransfer.receiver?.toLowerCase() === wallet.toLowerCase();
+
+            let counterparty = null;
+
+            if (isSenderSelf && !isReceiverSelf) {
+              counterparty = selectedTransfer.receiver;
+            } else if (!isSenderSelf && isReceiverSelf) {
+              counterparty = selectedTransfer.sender;
+            } else {
+              return alert("Cannot determine which wallet to add.");
+            }
+
+            if (
+              !counterparty ||
+              counterparty.toLowerCase() === wallet.toLowerCase()
+            ) {
+              return alert("Cannot add the same wallet.");
+            }
 
             onAddWallet({
-              from: transfer.sender,
-              to: transfer.receiver,
-              amount: String(transfer.amount),
+              from: selectedTransfer.sender,
+              to: selectedTransfer.receiver,
+              amount: String(selectedTransfer.amount),
             });
           }}
         >
